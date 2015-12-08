@@ -377,11 +377,13 @@ class Customer(StripeCustomer):
                   charge_immediately=True, prorate=djstripe_settings.PRORATION_POLICY):
         stripe_customer = self.stripe_customer
         """
-        Trial_days corresponds to the value specified by the selected plan
+        Will allow for overriding of trial_days. Otherwise,
+        trial_days corresponds to the value specified by the selected plan
         for the key trial_period_days.
         """
-        if ("trial_period_days" in djstripe_settings.PAYMENTS_PLANS[plan]):
-            trial_days = djstripe_settings.PAYMENTS_PLANS[plan]["trial_period_days"]
+        if trial_days == None:
+            if ("trial_period_days" in djstripe_settings.PAYMENTS_PLANS[plan]):
+                trial_days = djstripe_settings.PAYMENTS_PLANS[plan]["trial_period_days"]
 
         if trial_days:
             resp = stripe_customer.update_subscription(
@@ -416,6 +418,27 @@ class Customer(StripeCustomer):
     def record_charge(self, charge_id):
         data = Charge.api().retrieve(charge_id)
         return Charge.sync_from_stripe_data(data)
+        
+    def trial_days_remaining(self):
+        """
+        Returns the number of days remaining on the customer's trial.
+        
+        Returns None if customer does not have a current subscription.
+        """
+        current_subscription = getattr(self, current_subscription, None)
+        if not current_subscription:
+            return None
+            
+        if current_subscription.status != current_subscription.STATUS_TRIALING:
+            return 0
+            
+        trial_end = current_subscription.trial_end
+        now = timezone.now()
+        days_remaining = (trial_end - now).days
+        if (now > trial_end):
+            return 0 # trial has already ended
+        else:
+            return days_remaining
 
 
 class CurrentSubscription(TimeStampedModel):
