@@ -425,7 +425,7 @@ class Customer(StripeCustomer):
         
         Returns None if customer does not have a current subscription.
         """
-        current_subscription = getattr(self, current_subscription, None)
+        current_subscription = getattr(self, 'current_subscription', None)
         if not current_subscription:
             return None
             
